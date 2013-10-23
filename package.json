@@ -1,0 +1,19 @@
+{
+  "name": "cloudfront-log-sampler",
+  "version": "0.0.0",
+  "description": "Very basic CloudFront log analysis",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "",
+  "author": "",
+  "license": "BSD",
+  "readmeFilename": "README.md",
+  "dependencies": {
+    "minimist": "0.0.2",
+    "knox": "0.8.6",
+    "step": "0.0.5",
+    "underscore": "1.5.2"
+  }
+}
