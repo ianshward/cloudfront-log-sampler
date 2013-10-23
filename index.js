@@ -18,6 +18,10 @@ var codes = {};
 var cache = {};
 var total = 0;
 
+process.on('uncaughtException', function(err) {
+    // TODO Occasional EPIPE errors...
+});
+
 Step(function() {
     client.list({ prefix: argv.prefix }, this);
     }, function(err, data) {
