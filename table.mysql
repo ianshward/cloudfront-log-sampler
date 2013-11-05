@@ -1,0 +1,14 @@
+DROP DATABASE IF EXISTS cloudfront;
+CREATE DATABASE cloudfront;
+USE cloudfront;
+
+CREATE TABLE requests (
+        req VARCHAR(255) NOT NULL,
+	url VARCHAR(255) NOT NULL,
+        customer VARCHAR(40) NOT NULL,
+        pop VARCHAR(6) NOT NULL,
+        status VARCHAR(11) NOT NULL,
+        hour TINYINT NOT NULL,
+        count INT UNSIGNED NOT NULL default '0',
+        PRIMARY KEY (url, pop, status, hour)
+);

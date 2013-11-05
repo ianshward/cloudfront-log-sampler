@@ -3,6 +3,15 @@ var Step = require('step');
 var knox = require('knox');
 var _ = require('underscore');
 var argv = require('minimist')(process.argv.slice(2));
+var mysql = require('mysql');
+
+var pool  = mysql.createPool({
+  host     : 'localhost',
+  user     : argv.mysqluser,
+  password : argv.mysqlpass,
+  database: argv.mysqldb,
+  connectionLimit: 256
+});
 
 var client = knox.createClient({
     key: argv.key,
@@ -17,6 +26,7 @@ var pops = {};
 var codes = {};
 var cache = {};
 var total = 0;
+var map = {};
 
 process.on('uncaughtException', function(err) {
     // TODO Occasional EPIPE errors...
@@ -53,6 +63,7 @@ Step(function() {
         _(cache).each(function(status, name) {
             console.log(name + ': ' + status);
         });
+
     }
 );
 
@@ -91,19 +102,47 @@ function fetch(log, callback) {
 function mapper(line) {
     var parts = line.split(/\s+/g);
     if (parts.length > 5) {
-        if (argv.log)
-            console.log('"%s %s"', parts[5], parts[7]);
-        else {
-            total++;
-            var pop = parts[2].substr(0, 3);
-            var code = parts[8];
-            var status = parts[13];
-            if (!pops[pop]) pops[pop] = 1;
-            else pops[pop]++;
-            if (!codes[code]) codes[code] = 1;
-            else codes[code]++;
-            if (!cache[status]) cache[status] = 1;
-            else cache[status]++;
+        switch (argv.output) {
+            case 'log':
+                console.log('"%s %s"', parts[5], parts[7]);
+                break;
+            case 'mysql':
+                if (parts[7].indexOf('.') !== -1) {
+                    var url = parts[7];
+                    var customer = url.split('/')[2].split('.')[0];
+                    var hour = parts[1].split(':')[0];
+                    var pop = parts[2];
+                    var status = parts[13];
+                    var record = {
+                      req: url + pop + status + hour,
+                      url: url,
+                      customer: customer,
+                      pop: pop,
+                      status: status,
+                      hour: hour,
+                      count: 1
+                    };
+                    pool.getConnection(function(err, connection) {
+                        var query = connection.query('INSERT DELAYED INTO requests SET ? on duplicate key update count = count + 1', record,
+                          function(err, result) {
+                              if (err) console.log(err);
+                              connection.release();
+                        });
+                    });
+                }
+                break;
+            default:
+                total++;
+                var pop = parts[2].substr(0, 3);
+                var code = parts[8];
+                var status = parts[13];
+                if (!pops[pop]) pops[pop] = 1;
+                else pops[pop]++;
+                if (!codes[code]) codes[code] = 1;
+                else codes[code]++;
+                if (!cache[status]) cache[status] = 1;
+                else cache[status]++;
+                break;
         }
     }
 }
