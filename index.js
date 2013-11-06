@@ -4,6 +4,8 @@ var knox = require('knox');
 var _ = require('underscore');
 var argv = require('minimist')(process.argv.slice(2));
 var mysql = require('mysql');
+var Queue = require('basic-queue');
+var q = new Queue(fetch, 1);
 
 var pool  = mysql.createPool({
   host     : 'localhost',
@@ -50,7 +52,7 @@ Step(function() {
         }
         // Now fetch + parse all files
         sample.forEach(function(file) {
-            fetch(file, group());
+            q.add(file);
         });
     }, function(err) {
         if (err) throw err;
@@ -109,8 +111,8 @@ function mapper(line) {
             case 'mysql':
                 if (parts[7].indexOf('.') !== -1) {
                     var url = parts[7];
-                    var customer = url.split('/')[2].split('.')[0];
-                    var hour = parts[1].split(':')[0];
+                    var customer = url.substring(4, url.indexOf('.'));
+                    var hour = parts[1].substr(0,2);
                     var pop = parts[2];
                     var status = parts[13];
                     var record = {
