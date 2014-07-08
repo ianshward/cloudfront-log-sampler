@@ -1,12 +1,15 @@
 var zlib = require('zlib');
+var path = require('path');
 var Step = require('step');
 var knox = require('knox');
 var _ = require('underscore');
 var argv = require('minimist')(process.argv.slice(2));
+var geoip = new (require('geoip').City)(path.resolve(__dirname + '/support/GeoLiteCity.dat'));
 
 var client = knox.createClient({
     key: argv.key,
     secret: argv.secret,
+    token: argv.token,
     bucket: argv.bucket
 });
 
@@ -17,6 +20,7 @@ var pops = {};
 var codes = {};
 var cache = {};
 var total = 0;
+var cities = {};
 
 process.on('uncaughtException', function(err) {
     // TODO Occasional EPIPE errors...
@@ -44,14 +48,15 @@ Step(function() {
         });
     }, function(err) {
         if (err) throw err;
-        _(pops).each(function(pop, name) {
-            console.log(name + ': ' + (pop / total) * 100 + '%');
-        });
-        _(codes).each(function(code, name) {
-            console.log(name + ': ' + code);
-        });
-        _(cache).each(function(status, name) {
-            console.log(name + ': ' + status);
+
+        _(cities).each(function(coords, ll) {
+            var lat = ll.split('_')[0];
+            var lon = ll.split('_')[1];
+            var total = 0;
+            _(cities[ll].times).each(function(time) {
+                total+= time;
+            });
+            console.log(lat + ',' + lon + ',' + total / cities[ll].times.length);
         });
     }
 );
@@ -93,6 +98,23 @@ function mapper(line) {
     if (parts.length > 5) {
         if (argv.log)
             console.log('"%s %s"', parts[5], parts[7]);
+        else if (argv.geoip) {
+            var edge = parts[2];
+            var ip = parts[4];
+            var time = parts[18];
+            var status = parts[13];
+            if (status == 'Miss') {
+                geoip.lookup(ip, function(err, res) {
+                    if (err) throw err;
+                    var k = res.latitude + '_' + res.longitude;
+                    if (!cities[k]) {
+                        cities[k] = {};
+                        cities[k].times = [];
+                    }
+                    cities[k].times.push(parseFloat(time));
+                });
+            }
+        }
         else {
             total++;
             var pop = parts[2].substr(0, 3);
